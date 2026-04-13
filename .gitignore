@@ -1,0 +1,38 @@
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Logs
+*.log
+
+# PHP / Laravel
+/api/vendor/
+/api/.phpunit.cache/
+/api/public/storage
+
+# Go
+/worker/bin/
+
+# Node / Nuxt
+/web/node_modules/
+/web/.nuxt/
+/web/.output/
+/web/dist/
+
+# Cloudflare Workers
+/probes/node_modules/
+/probes/.wrangler/
+
+# Docker
+docker/volumes/
