@@ -34,7 +34,7 @@ class MonitorFactory extends Factory
                 $this->faker->numberBetween(1, count(MonitorRegion::cases()))
             ),
             'is_active' => true,
-            'last_checked_at' => null,
+            'next_check_at' => null,
             'last_status' => MonitorStatus::PENDING,
         ];
     }
@@ -48,7 +48,7 @@ class MonitorFactory extends Factory
     {
         return $this->state([
             'last_status' => MonitorStatus::UP,
-            'last_checked_at' => now(),
+            'next_check_at' => now(),
         ]);
     }
 
@@ -56,7 +56,7 @@ class MonitorFactory extends Factory
     {
         return $this->state([
             'last_status' => MonitorStatus::DOWN,
-            'last_checked_at' => now(),
+            'next_check_at' => now(),
         ]);
     }
 }

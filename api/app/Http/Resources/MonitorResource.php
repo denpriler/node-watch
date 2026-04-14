@@ -28,7 +28,7 @@ class MonitorResource extends JsonResource
             'expected_status' => $this->resource->expected_status,
             'regions' => $this->resource->regions,
             'is_active' => $this->resource->is_active,
-            'last_checked_at' => $this->whenNotNull($this->resource->last_checked_at?->format('Y-m-d H:i:s')),
+            'next_check_at' => $this->whenNotNull($this->resource->next_check_at?->format('Y-m-d H:i:s')),
             'last_status' => $this->resource->last_status->toStringValue(),
         ];
     }

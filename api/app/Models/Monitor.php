@@ -34,7 +34,7 @@ class Monitor extends Model
         'expected_status' => 'integer',
         'regions' => 'array',
         'is_active' => 'boolean',
-        'last_checked_at' => 'datetime',
+        'next_check_at' => 'datetime',
         'last_status' => MonitorStatus::class,
         'method' => MonitorMethod::class,
     ];

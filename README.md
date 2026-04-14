@@ -131,7 +131,10 @@ cd worker && go run cmd/worker/main.go
 ## Roadmap
 
 - [x] **Phase 1** — Laravel API: auth, monitor CRUD, Swagger, tests
-- [ ] **Phase 1** — Kafka producer, Go worker, ClickHouse consumer, Nuxt dashboard
+- [x] **Phase 1** — Kafka producer: scheduler dispatches probe tasks per region
+- [ ] **Phase 1** — Go worker (eu-west): consume → probe → monitor.result
+- [ ] **Phase 1** — Laravel consumer: monitor.result → ClickHouse + MySQL status
+- [ ] **Phase 1** — Basic Nuxt dashboard
 - [ ] **Phase 2** — Incidents, alerts (Email/Telegram), Prometheus, Grafana
 - [ ] **Phase 3** — Cloudflare Workers (US, Asia), region comparison UI
 - [ ] **Phase 4** — Kubernetes, rate limiting, load testing, CI/CD
