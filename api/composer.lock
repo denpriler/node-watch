@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fcee4f18d304bca86e283026d2daec1f",
+    "content-hash": "0161bb6bc4ef3974faca28e2742b0d84",
     "packages": [
         {
             "name": "beberlei/assert",
@@ -7991,6 +7991,44 @@
                 "source": "https://github.com/iamcal/SQLParser/tree/v0.7"
             },
             "time": "2026-01-28T22:20:33+00:00"
+        },
+        {
+            "name": "kwn/php-rdkafka-stubs",
+            "version": "v3.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/kwn/php-rdkafka-stubs.git",
+                "reference": "bdd5cdc35c53e6f624e33c5ddc6bdf3cc51041ef"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/kwn/php-rdkafka-stubs/zipball/bdd5cdc35c53e6f624e33c5ddc6bdf3cc51041ef",
+                "reference": "bdd5cdc35c53e6f624e33c5ddc6bdf3cc51041ef",
+                "shasum": ""
+            },
+            "require": {
+                "ext-rdkafka": ">=6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^8.2.4"
+            },
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Karol Wnuk",
+                    "email": "k.wnuk@ascetic.pl"
+                }
+            ],
+            "description": "Rdkafka extension stubs for your IDE",
+            "support": {
+                "issues": "https://github.com/kwn/php-rdkafka-stubs/issues",
+                "source": "https://github.com/kwn/php-rdkafka-stubs/tree/v3.0.1"
+            },
+            "time": "2026-04-01T18:48:06+00:00"
         },
         {
             "name": "larastan/larastan",

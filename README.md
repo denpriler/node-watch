@@ -9,14 +9,14 @@ Self-hosted uptime monitoring service with distributed probes. Checks website an
 | Layer | Technology |
 |-------|------------|
 | API | Laravel 13, PHP 8.4 |
-| Probe Worker | Go 1.24 |
+| Probe Workers | Cloudflare Workers (all regions) |
 | Message Queue | Kafka (Redpanda) |
 | Primary DB | MySQL 8.4 |
 | Metrics DB | ClickHouse 25.3 |
 | Cache / Sessions | Redis 7.4 |
 | Distributed Probes | Cloudflare Workers |
 | Observability | Prometheus + Grafana |
-| Frontend | Nuxt 3, Tailwind CSS |
+| Frontend | Nuxt 4, Tailwind CSS |
 | Infra | Docker Compose → Kubernetes |
 
 ## Architecture
@@ -25,26 +25,29 @@ Self-hosted uptime monitoring service with distributed probes. Checks website an
 Nuxt / Swagger UI
        │
        ▼
-Laravel 13 API  ──────────────────────────────────────────────────────┐
-  • Sanctum auth                                                       │
-  • Monitor CRUD                                                       │
-  • Kafka producer                                                     │
-  • Kafka consumer → ClickHouse + alerts                               │
-       │                                                               │
-  ┌────┴────┐  ┌──────────┐  ┌───────┐  ┌───────────┐               │
-  │  MySQL  │  │  MySQL   │  │ Redis │  │ClickHouse │               │
-  │ (write) │  │ (replica)│  │       │  │  metrics  │               │
-  └─────────┘  └──────────┘  └───────┘  └───────────┘               │
-                                                                       │
-                              Kafka (Redpanda)                         │
-                                    │                                  │
-              ┌─────────────────────┼─────────────────────┐           │
-              ▼                     ▼                     ▼           │
-        Go Worker             CF Worker US          CF Worker Asia    │
-        region: eu-west       region: us-east       region: ap-south  │
-              └─────────────────────┴─────────────────────┘           │
-                                    │                                  │
-                             monitor.result ───────────────────────────┘
+Laravel 13 API
+  • Sanctum auth    • Monitor CRUD
+  • Kafka producer  • POST /api/internal/probe-result
+       │
+  ┌────┴────┐  ┌──────────┐  ┌───────┐  ┌───────────┐
+  │  MySQL  │  │  MySQL   │  │ Redis │  │ClickHouse │
+  │ (write) │  │ (replica)│  │       │  │  metrics  │
+  └─────────┘  └──────────┘  └───────┘  └───────────┘
+
+              Kafka (Redpanda)
+                    │
+              Go CF Bridge
+          ┌─────────┼─────────┐
+          ▼         ▼         ▼
+     CF Queue   CF Queue   CF Queue
+      eu-west   us-east   ap-south
+          │         │         │
+          ▼         ▼         ▼
+     CF Worker  CF Worker  CF Worker
+          └─────────┼─────────┘
+                    │ POST /api/internal/probe-result
+                    ▼
+               Laravel API
 ```
 
 ## Getting Started
@@ -132,8 +135,9 @@ cd worker && go run cmd/worker/main.go
 
 - [x] **Phase 1** — Laravel API: auth, monitor CRUD, Swagger, tests
 - [x] **Phase 1** — Kafka producer: scheduler dispatches probe tasks per region
-- [ ] **Phase 1** — Go worker (eu-west): consume → probe → monitor.result
-- [ ] **Phase 1** — Laravel consumer: monitor.result → ClickHouse + MySQL status
+- [x] **Phase 1** — POST /api/internal/probe-result endpoint with internal token auth
+- [ ] **Phase 1** — Go CF Bridge + CF Workers (all 3 regions)
+- [ ] **Phase 1** — Laravel consumer: ClickHouse write + MySQL status update
 - [ ] **Phase 1** — Basic Nuxt dashboard
 - [ ] **Phase 2** — Incidents, alerts (Email/Telegram), Prometheus, Grafana
 - [ ] **Phase 3** — Cloudflare Workers (US, Asia), region comparison UI

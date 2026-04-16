@@ -1,0 +1,14 @@
+app = "node-watch-worker"
+primary_region = "ams"
+
+[build]
+
+# No [[services]] — this is a pure background consumer, not an HTTP server.
+# FLY_REGION is injected automatically by Fly per machine.
+# Deploy to 3 regions after first deploy:
+#   fly scale count 1 --region ams,iad,nrt
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

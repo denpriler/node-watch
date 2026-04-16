@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\DTO\Monitor\MonitorProbe;
@@ -11,9 +13,9 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Junges\Kafka\Contracts\MessageProducer;
-use Junges\Kafka\Facades\Kafka;
-use Junges\Kafka\Message\Message;
+use RdKafka\Conf;
+use RdKafka\Producer;
+use RdKafka\ProducerTopic;
 
 #[Signature('monitor:push-active')]
 #[Description('Push active monitors to workers by region.')]
@@ -27,6 +29,20 @@ class PushActiveMonitors extends Command
 
     public function handle(): void
     {
+        $conf = new Conf;
+        $conf->set('metadata.broker.list', config('kafka.brokers'));
+        $conf->set('security.protocol', config('kafka.securityProtocol'));
+        $conf->set('sasl.mechanisms', config('kafka.sasl.mechanisms'));
+        $conf->set('sasl.username', config('kafka.sasl.username'));
+        $conf->set('sasl.password', config('kafka.sasl.password'));
+
+        $producer = new Producer($conf);
+
+        /** @var array<string, ProducerTopic> $topics */
+        $topics = collect(self::TOPIC_MAP)
+            ->map(fn (string $topic) => $producer->newTopic($topic))
+            ->all();
+
         $startTime = CarbonImmutable::now();
 
         $query = Monitor::query()
@@ -37,56 +53,53 @@ class PushActiveMonitors extends Command
             )
             ->where('is_active', true);
 
-        $bar = $this->output->createProgressBar($query->count());
-        $bar->start();
+        if ($count = $query->count()) {
+            $this->newLine();
+            $bar = $this->output->createProgressBar($count);
+            $bar->start();
+            $this->newLine();
 
-        $query->chunkById(100, function (Collection $monitors) use ($startTime, $bar) {
-            /** @var Collection<int, Monitor> $monitors */
+            $query->chunkById(100, function (Collection $monitors) use ($startTime, $bar, $topics, $producer) {
+                /** @var Collection<int, Monitor> $monitors */
+                $monitors->each(function (Monitor $monitor) use ($startTime, $bar, $topics, $producer) {
+                    $probe = MonitorProbe::fromMonitor($monitor);
 
-            /** @var array<string, MessageProducer> $producers */
-            $producers = collect(self::TOPIC_MAP)
-                ->mapWithKeys(fn (string $topic, string $region) => [
-                    $region => Kafka::publish()->onTopic($topic),
-                ])
-                ->all();
+                    foreach ($monitor->regions as $region) {
+                        if (! isset($topics[$region])) {
+                            continue;
+                        }
 
-            $monitors->each(function (Monitor $monitor) use ($producers, $startTime) {
-                $probe = MonitorProbe::fromMonitor($monitor);
+                        $this->info(sprintf('Pushing monitor #%d probe to %s', $monitor->id, $region));
+                        $topics[$region]->produce(
+                            RD_KAFKA_PARTITION_UA,
+                            0,
+                            json_encode($probe->toArray()),
+                            sprintf('probe_%d_%d', $probe->monitorId, $startTime->timestamp),
+                        );
 
-                foreach ($monitor->regions as $region) {
-                    if (! isset($producers[$region])) {
-                        continue;
+                        $producer->poll(0);
                     }
 
-                    $producers[$region]->withMessage(new Message(
-                        body: $probe->toArray(),
-                        key: sprintf('probe_%d_%d', $probe->monitorId, $startTime->timestamp),
-                    ));
-                }
-            });
-
-            try {
-                foreach ($producers as $producer) {
-                    $producer->send();
-                }
-            } catch (\Throwable $throwable) {
-                $this->error($throwable->getMessage());
-                $this->info(sprintf('Unprocessed monitors: %s', $monitors->pluck('id')->join(', ')));
-
-                return;
-            }
-
-            $monitors->groupBy('check_interval')
-                ->each(function (Collection $intervalGroup, int $interval) use ($startTime) {
-                    Monitor::whereIn('id', $intervalGroup->pluck('id'))
-                        ->update(['next_check_at' => $startTime->addSeconds($interval)]);
+                    $bar->advance();
                 });
 
-            $bar->advance($monitors->count());
-        });
+                $monitors->groupBy('check_interval')
+                    ->each(function (Collection $intervalGroup, int $interval) use ($startTime) {
+                        Monitor::whereIn('id', $intervalGroup->pluck('id'))
+                            ->update(['next_check_at' => $startTime->addSeconds($interval)]);
+                    });
+            });
 
-        $bar->finish();
-        $this->newLine();
-        $this->info(sprintf('%d of %d monitors were processed.', $bar->getProgress(), $bar->getMaxSteps()));
+            $remaining = $producer->flush(10000);
+
+            $bar->finish();
+            $this->newLine();
+
+            if ($remaining > 0) {
+                $this->warn("Flush timed out: {$remaining} message(s) may not have been delivered.");
+            }
+
+            $this->info(sprintf('%d of %d monitors were processed.', $bar->getProgress(), $bar->getMaxSteps()));
+        }
     }
 }

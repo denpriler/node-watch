@@ -11,16 +11,15 @@
 | Component | Technology |
 |-----------|------------|
 | **API** | Laravel 13, PHP 8.4 |
-| **Probe Worker (eu-west)** | Go 1.24 (local/VPS) |
-| **Probe Workers (us-east, ap-south)** | Cloudflare Workers |
-| **CF Task Queue** | Cloudflare Queues |
+| **Probe Workers (all regions)** | Cloudflare Workers |
+| **CF Task Queues** | Cloudflare Queues (eu-west, us-east, ap-south) |
 | **Internal Queue** | Kafka (Redpanda) |
-| **CF Bridge** | Go service (Redpanda ↔ CF Queues) |
+| **CF Bridge** | Go service (Redpanda → CF Queues, all 3 regions) |
 | **Primary DB** | MySQL 8.4 + read replica |
 | **Metrics DB** | ClickHouse 25.3 (Distributed sharding) |
 | **Cache** | Redis 7.4 |
 | **Observability** | Prometheus + Grafana |
-| **Frontend** | Nuxt 3, Tailwind CSS |
+| **Frontend** | Nuxt 4, Tailwind CSS |
 | **Infra** | Docker Compose → Kubernetes |
 
 ## Architecture
@@ -49,39 +48,35 @@
 
                     Kafka (Redpanda) — internal only
                            │
-          ┌────────────────┴──────────────────┐
-          │                                   │
-          ▼                                   ▼
-   Go Worker                          Go CF Bridge
-   region: eu-west                    (Redpanda ↔ CF Queues)
-   (probe + result)                          │
-                                    ┌────────┴────────┐
-                                    ▼                 ▼
-                            CF Queue US         CF Queue Asia
-                            (us-east)           (ap-south)
-                                    │                 │
-                                    ▼                 ▼
-                            CF Worker US        CF Worker Asia
-                            (Cron/Push)         (Cron/Push)
-                                    │                 │
-                                    └────────┬────────┘
-                                             │ POST /api/internal/probe-result
-                                             ▼
-                                        Laravel API
+                           ▼
+                     Go CF Bridge
+                  (all 3 Kafka topics)
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+    CF Queue EU      CF Queue US      CF Queue Asia
+    (eu-west)        (us-east)        (ap-south)
+          │                │                │
+          ▼                ▼                ▼
+    CF Worker EU     CF Worker US     CF Worker Asia
+                           │
+                           │ POST /api/internal/probe-result
+                           ▼
+                      Laravel API
 ```
 
 ### Cloudflare Workers Flow (push-based, no polling)
 
 ```
-1. Laravel Scheduler → Kafka monitor.check.us-east
-2. Go CF Bridge reads Kafka → pushes tasks to CF Queue US via CF API
-3. CF Queue triggers CF Worker US automatically (push, not cron poll)
-4. CF Worker probes URL, measures response time
+1. Laravel Scheduler → Kafka monitor.eu-west / us-east / ap-south
+2. Go CF Bridge reads all 3 topics → pushes to corresponding CF Queue via CF API
+3. CF Queue triggers CF Worker automatically (push, not cron poll)
+4. CF Worker probes URL, measures TTFB + response time
 5. CF Worker POST /api/internal/probe-result → Laravel API
 6. Laravel writes ClickHouse + updates monitor status
 ```
 
-Go CF Bridge runs locally/VPS alongside Redpanda. It's a simple Kafka consumer + CF Queues producer.
+Go CF Bridge runs alongside Redpanda (VPS or local). Simple Kafka consumer + CF Queues producer, one instance handles all 3 regions.
 
 ## Repository Structure
 
@@ -107,17 +102,15 @@ node-watch/
 │   │   ├── api.php
 │   │   └── api/auth.php
 │   └── storage/api-docs/       # Generated Swagger JSON
-├── worker/                     # Go probe worker (eu-west)
-│   ├── cmd/worker/
-│   └── internal/
-├── bridge/                     # Go CF Bridge (Redpanda ↔ CF Queues)
+├── bridge/                     # Go CF Bridge (Redpanda → CF Queues, all 3 regions)
 │   ├── cmd/bridge/
 │   └── internal/
-├── probes/                     # Cloudflare Workers
+├── probes/                     # Cloudflare Workers (all 3 regions)
+│   ├── worker-eu/              # eu-west probe
 │   ├── worker-us/              # us-east probe
 │   ├── worker-asia/            # ap-south probe
 │   └── wrangler.toml
-├── web/                        # Nuxt 3
+├── web/                        # Nuxt 4
 ├── monitoring/                 # Prometheus + Grafana
 ├── docker/
 ├── k8s/
@@ -172,12 +165,11 @@ Sharding key: `monitor_id` — evenly distributes write load, range queries by m
 
 | Topic | Producer | Consumer |
 |-------|----------|----------|
-| `monitor.check.eu-west` | Laravel Scheduler | Go Worker |
-| `monitor.check.us-east` | Laravel Scheduler | Go CF Bridge → CF Queue US |
-| `monitor.check.ap-south` | Laravel Scheduler | Go CF Bridge → CF Queue Asia |
-| `monitor.result` | Go Worker | Laravel Consumer |
+| `monitor.eu-west` | Laravel Scheduler | Go CF Bridge → CF Queue EU |
+| `monitor.us-east` | Laravel Scheduler | Go CF Bridge → CF Queue US |
+| `monitor.ap-south` | Laravel Scheduler | Go CF Bridge → CF Queue Asia |
 
-CF Workers post results directly to Laravel API (not via Kafka).
+CF Workers probe URLs and POST results directly to `/api/internal/probe-result` — no `monitor.result` Kafka topic needed.
 
 ## Development Phases
 
@@ -188,8 +180,10 @@ CF Workers post results directly to Laravel API (not via Kafka).
 - [x] Monitor CRUD API with ownership policy
 - [x] Swagger UI (l5-swagger, PHP 8 attributes)
 - [x] Feature tests: AuthController (14), MonitorController (23)
-- [ ] Kafka producer: Laravel Scheduler → monitor.check.*
-- [ ] Go Worker (eu-west): consume → probe → monitor.result
+- [x] Kafka producer: Laravel Scheduler → monitor.eu-west / us-east / ap-south (raw rdkafka, persistent producer, batch produce + single flush)
+- [x] POST /api/internal/probe-result — ProbeResultController + VerifyInternalToken middleware
+- [ ] Go CF Bridge (Redpanda → CF Queues, all 3 regions)
+- [ ] CF Worker eu-west + us-east + ap-south (probe → POST /api/internal/probe-result)
 - [ ] Laravel consumer: monitor.result → ClickHouse + MySQL update
 - [ ] Basic Nuxt dashboard
 
@@ -202,10 +196,7 @@ CF Workers post results directly to Laravel API (not via Kafka).
 - [ ] Grafana dashboard
 
 ### Phase 3: Distributed Probes
-- [ ] Go CF Bridge (Redpanda ↔ CF Queues)
-- [ ] CF Worker us-east (Cloudflare Workers + Queues)
-- [ ] CF Worker ap-south
-- [ ] POST /api/internal/probe-result (auth TBD)
+- [ ] CF Worker eu-west, us-east, ap-south
 - [ ] ClickHouse Distributed (2 shards in docker-compose)
 - [ ] Region comparison UI in Nuxt
 
