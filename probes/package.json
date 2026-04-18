@@ -1,0 +1,17 @@
+{
+  "name": "node-watch-probes",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy:eu": "wrangler deploy --env eu",
+    "deploy:us": "wrangler deploy --env us",
+    "deploy:asia": "wrangler deploy --env asia",
+    "deploy:all": "npm run deploy:eu && npm run deploy:us && npm run deploy:asia",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250415.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.10.0"
+  }
+}

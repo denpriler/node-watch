@@ -23,6 +23,7 @@ Thumbs.db
 
 # Go
 /worker/bin/
+/bridge/bridge
 
 # Node / Nuxt
 /web/node_modules/

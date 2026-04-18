@@ -8,9 +8,42 @@ use App\Enum\Monitor\MonitorStatus;
 use App\Http\Requests\ProbeResultRequest;
 use App\Models\Monitor;
 use Illuminate\Http\JsonResponse;
+use OpenApi\Attributes as OA;
 
 class ProbeResultController extends Controller
 {
+    #[OA\Post(
+        path: '/api/internal/probe-result',
+        summary: 'Submit probe result',
+        description: 'Called by CF Workers after executing a probe. Authenticated via X-Internal-Token header.',
+        tags: ['Internal'],
+        parameters: [
+            new OA\Parameter(name: 'X-Internal-Token', in: 'header', required: true, schema: new OA\Schema(type: 'string')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['monitor_id', 'region', 'status_code', 'response_time_ms', 'ttfb_ms', 'is_up', 'checked_at'],
+                properties: [
+                    new OA\Property(property: 'monitor_id', type: 'integer', example: 1),
+                    new OA\Property(property: 'region', type: 'string', example: 'eu-west'),
+                    new OA\Property(property: 'status_code', type: 'integer', example: 200),
+                    new OA\Property(property: 'response_time_ms', type: 'integer', example: 142),
+                    new OA\Property(property: 'ttfb_ms', type: 'integer', example: 98),
+                    new OA\Property(property: 'is_up', type: 'boolean', example: true),
+                    new OA\Property(property: 'error', type: 'string', nullable: true, example: null),
+                    new OA\Property(property: 'checked_at', type: 'string', format: 'date-time', example: '2026-04-18T14:00:00.000Z'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Result accepted', content: new OA\JsonContent(
+                properties: [new OA\Property(property: 'ok', type: 'boolean', example: true)],
+            )),
+            new OA\Response(response: 401, description: 'Invalid or missing internal token'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ],
+    )]
     public function __invoke(ProbeResultRequest $request): JsonResponse
     {
         $data = $request->validated();

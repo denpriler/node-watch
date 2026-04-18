@@ -182,9 +182,9 @@ CF Workers probe URLs and POST results directly to `/api/internal/probe-result` 
 - [x] Feature tests: AuthController (14), MonitorController (23)
 - [x] Kafka producer: Laravel Scheduler → monitor.eu-west / us-east / ap-south (raw rdkafka, persistent producer, batch produce + single flush)
 - [x] POST /api/internal/probe-result — ProbeResultController + VerifyInternalToken middleware
-- [ ] Go CF Bridge (Redpanda → CF Queues, all 3 regions)
-- [ ] CF Worker eu-west + us-east + ap-south (probe → POST /api/internal/probe-result)
-- [ ] Laravel consumer: monitor.result → ClickHouse + MySQL update
+- [x] Go CF Bridge (Redpanda → CF Queues, all 3 regions)
+- [x] CF Worker eu-west + us-east + ap-south (probe → POST /api/internal/probe-result)
+- [ ] ClickHouse write on probe result (ProbeResultController → monitor_logs)
 - [ ] Basic Nuxt dashboard
 
 ### Phase 2: Alerts & Observability

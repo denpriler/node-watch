@@ -41,7 +41,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'expected_status', type: 'integer', example: 200),
         new OA\Property(property: 'regions', type: 'array', items: new OA\Items(type: 'string', example: 'eu-west')),
         new OA\Property(property: 'is_active', type: 'boolean', example: true),
-        new OA\Property(property: 'last_checked_at', type: 'string', format: 'date-time', nullable: true, example: null),
+        new OA\Property(property: 'next_check_at', type: 'string', format: 'date-time', nullable: true, example: null),
         new OA\Property(property: 'last_status', type: 'string', enum: ['PENDING', 'UP', 'DOWN'], example: 'PENDING'),
     ],
     type: 'object',
