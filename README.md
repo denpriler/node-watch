@@ -2,16 +2,15 @@
 
 Self-hosted uptime monitoring service with distributed probes. Checks website and API availability from multiple regions (EU, US, Asia) and alerts on incidents.
 
-> Portfolio project demonstrating high-load architecture for Senior PHP/Go Backend positions.
+> Portfolio project demonstrating high-load architecture for Senior PHP Backend positions.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | API | Laravel 13, PHP 8.4 |
-| Internal Queue | Kafka (Redpanda) |
-| CF Bridge | Go (Redpanda → Cloudflare Queues) |
 | Probe Workers | Cloudflare Workers (TypeScript) |
+| Task Queues | Cloudflare Queues (eu-west, us-east, ap-south) |
 | Primary DB | MySQL 8.4 |
 | Metrics DB | ClickHouse 25.3 |
 | Cache / Sessions | Redis 7.4 |
@@ -27,55 +26,46 @@ Nuxt / Swagger UI
        ▼
 Laravel 13 API
   • Sanctum auth    • Monitor CRUD
-  • Kafka producer  • POST /api/internal/probe-result
+  • CF Queue push   • POST /api/internal/probe-result
        │
   ┌────┴────┐  ┌──────────┐  ┌───────┐  ┌───────────┐
   │  MySQL  │  │  MySQL   │  │ Redis │  │ClickHouse │
   │ (write) │  │ (replica)│  │       │  │  metrics  │
   └─────────┘  └──────────┘  └───────┘  └───────────┘
-
-              Kafka (Redpanda)
-                    │
-              Go CF Bridge
-          ┌─────────┼─────────┐
-          ▼         ▼         ▼
-     CF Queue   CF Queue   CF Queue
-      eu-west   us-east   ap-south
-          │         │         │
-          ▼         ▼         ▼
-     CF Worker  CF Worker  CF Worker
-          └─────────┼─────────┘
-                    │ POST /api/internal/probe-result
-                    ▼
-               Laravel API
+       │
+  ┌────┴──────────────────────┐
+  ▼           ▼               ▼
+CF Queue   CF Queue       CF Queue
+ eu-west   us-east        ap-south
+  │           │               │
+  ▼           ▼               ▼
+CF Worker  CF Worker      CF Worker
+  └───────────┼───────────────┘
+              │ POST /api/internal/probe-result
+              ▼
+         Laravel API
 ```
 
 ## Probe Cycle
-
-End-to-end flow from scheduler to result:
 
 ```
 1. Laravel Scheduler → php artisan monitor:push-active
          │
          │  JSON: {monitor_id, url, method, timeout, expected_status}
          ▼
-2. Kafka topics: monitor.eu-west / monitor.us-east / monitor.ap-south
-         │
-         │  kafka-go consumer (SASL/TLS)
-         ▼
-3. Go CF Bridge — reads all 3 topics, pushes to CF Queue HTTP API
+2. CloudflareQueueService → CF Queues API (batch push, 3 regions)
          │
          │  POST api.cloudflare.com/.../queues/{id}/messages/batch
          ▼
-4. Cloudflare Queue — stores messages, triggers worker automatically (push)
+3. Cloudflare Queue — stores messages, triggers worker automatically (push)
          │
          │  push-based, no polling
          ▼
-5. CF Worker — fetches URL, measures response time + TTFB
+4. CF Worker — fetches URL, measures response time + TTFB
          │
          │  POST /api/internal/probe-result  (X-Internal-Token)
          ▼
-6. Laravel ProbeResultController — updates monitor.last_status in MySQL
+5. Laravel ProbeResultController — writes ClickHouse + updates monitor status
 ```
 
 > **Note on regions:** Cloudflare Queues and Workers are globally distributed — there is no free-tier option to pin a worker to a specific geographic region. Guaranteed regional execution requires Cloudflare's Enterprise **Regional Dispatch** feature. The three queues (eu-west, us-east, ap-south) partition probe workload and demonstrate the intent of regional monitoring; actual execution location is determined by Cloudflare's edge routing.
@@ -85,7 +75,6 @@ End-to-end flow from scheduler to result:
 ```
 node-watch/
 ├── api/          # Laravel 13 API
-├── bridge/       # Go CF Bridge (Redpanda → Cloudflare Queues)
 ├── probes/       # Cloudflare Workers (TypeScript, Wrangler)
 ├── web/          # Nuxt 4 frontend
 ├── monitoring/   # Prometheus + Grafana
@@ -100,11 +89,8 @@ node-watch/
 
 - Docker + Docker Compose
 - PHP 8.4 + Composer
-- Go 1.23+
 - Node.js 20+ + npm
-- librdkafka (for Kafka PHP extension)
 - Wrangler CLI (`npm install -g wrangler`)
-- A [Redpanda Cloud](https://redpanda.com/cloud) account (free tier)
 - A [Cloudflare](https://cloudflare.com) account (free tier)
 
 ### 1. Infrastructure
@@ -118,7 +104,7 @@ docker-compose up -d   # MySQL + ClickHouse + Redis
 
 ```bash
 cp api/.env.example api/.env
-# Fill in: DB_*, REDIS_*, KAFKA_BROKERS, KAFKA_SASL_*, INTERNAL_TOKEN
+# Fill in: DB_*, REDIS_*, CF_QUEUE_*, INTERNAL_TOKEN
 
 cd api
 composer install
@@ -129,14 +115,6 @@ php artisan serve
 
 API: `http://localhost:8000`  
 Swagger UI: `http://localhost:8000/api/documentation`
-
-#### Installing rdkafka (WSL / Linux)
-
-```bash
-sudo apt update && sudo apt install -y librdkafka-dev
-sudo pecl install rdkafka
-echo "extension=rdkafka.so" | sudo tee /etc/php/8.4/cli/conf.d/20-rdkafka.ini
-```
 
 ### 3. Cloudflare Setup
 
@@ -149,6 +127,16 @@ Create three queues in [Cloudflare Dashboard](https://dash.cloudflare.com) → *
 | `node-watch-ap-south` | Asia South |
 
 Create an API token: **My Profile → API Tokens → Create Token → Edit Cloudflare Workers** template.
+
+Fill in `api/.env`:
+
+```
+CF_QUEUE_ACCOUNT_ID=your_account_id
+CF_QUEUE_API_TOKEN=your_api_token
+CF_QUEUE_EU_WEST_ID=queue_id_from_dashboard
+CF_QUEUE_US_EAST_ID=queue_id_from_dashboard
+CF_QUEUE_AP_SOUTH_ID=queue_id_from_dashboard
+```
 
 ### 4. CF Workers — deploy
 
@@ -173,32 +161,12 @@ npm run deploy:all
 
 Workers will automatically bind to their respective queues as consumers.
 
-### 5. Go CF Bridge — run locally
+### 5. Running the probe cycle
+
+With API and Workers running:
 
 ```bash
-cp bridge/.env.example bridge/.env
-# Fill in: KAFKA_BROKERS, KAFKA_SASL_*, CF_ACCOUNT_ID, CF_API_TOKEN, CF_QUEUE_ID_*
-
-cd bridge
-go run ./cmd/bridge
-```
-
-#### Deploy to production (Docker)
-
-```bash
-cd bridge
-docker build -t node-watch-bridge .
-docker run --env-file .env node-watch-bridge
-```
-
-Or add to `docker-compose.yml` alongside Redpanda.
-
-### 6. Running the probe cycle
-
-With API, Bridge, and Workers all running:
-
-```bash
-# Push active monitors to Kafka → triggers full probe cycle
+# Push active monitors to CF Queues → triggers full probe cycle
 cd api && php artisan monitor:push-active
 
 # Or let the scheduler handle it automatically:
@@ -255,9 +223,8 @@ cd web && npm install && npm run dev
 ## Roadmap
 
 - [x] **Phase 1** — Laravel API: auth, monitor CRUD, Swagger, tests
-- [x] **Phase 1** — Kafka producer: scheduler dispatches probe tasks per region
+- [x] **Phase 1** — Laravel Scheduler → CloudflareQueueService → CF Queues (3 regions)
 - [x] **Phase 1** — POST /api/internal/probe-result with internal token auth
-- [x] **Phase 1** — Go CF Bridge (Redpanda → Cloudflare Queues, all 3 regions)
 - [x] **Phase 1** — CF Workers: probe execution + result delivery (all 3 regions)
 - [ ] **Phase 1** — ClickHouse write on probe result
 - [ ] **Phase 1** — Basic Nuxt dashboard

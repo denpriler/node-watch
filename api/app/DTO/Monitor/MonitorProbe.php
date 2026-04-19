@@ -6,7 +6,7 @@ namespace App\DTO\Monitor;
 
 use App\Enum\Monitor\MonitorMethod;
 use App\Models\Monitor;
-use Spatie\LaravelData\Attributes\MapOutputName;
+use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;
 
 class MonitorProbe extends Data
@@ -16,7 +16,7 @@ class MonitorProbe extends Data
         public readonly string $url,
         public readonly MonitorMethod $method,
         public readonly int $timeout,
-        #[MapOutputName('expected_status')]
+        #[MapName('expected_status')]
         public readonly int $expectedStatus,
     ) {}
 

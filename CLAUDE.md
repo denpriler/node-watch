@@ -4,7 +4,7 @@
 
 **NodeWatch** — self-hosted uptime monitoring service with distributed probes for checking website/API availability from multiple regions.
 
-**Purpose**: Portfolio project demonstrating high-load architecture skills for Senior PHP/Go Backend positions with relocation.
+**Purpose**: Portfolio project demonstrating high-load architecture skills for Senior PHP Backend positions with relocation.
 
 ## Tech Stack
 
@@ -13,8 +13,6 @@
 | **API** | Laravel 13, PHP 8.4 |
 | **Probe Workers (all regions)** | Cloudflare Workers |
 | **CF Task Queues** | Cloudflare Queues (eu-west, us-east, ap-south) |
-| **Internal Queue** | Kafka (Redpanda) |
-| **CF Bridge** | Go service (Redpanda → CF Queues, all 3 regions) |
 | **Primary DB** | MySQL 8.4 + read replica |
 | **Metrics DB** | ClickHouse 25.3 (Distributed sharding) |
 | **Cache** | Redis 7.4 |
@@ -33,9 +31,9 @@
                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                            LARAVEL 13 API                                    │
-│  • Auth (Sanctum)          • Kafka consumer → ClickHouse + incidents         │
-│  • Monitor CRUD            • POST /api/internal/probe-result (CF results)    │
-│  • Kafka producer          • Prometheus /metrics                             │
+│  • Auth (Sanctum)          • POST /api/internal/probe-result (CF results)    │
+│  • Monitor CRUD            • CloudflareQueueService → CF Queues (3 regions)  │
+│  • Scheduler               • Prometheus /metrics                             │
 └───┬─────────────┬──────────────────┬────────────────────┬────────────────────┘
     │             │                  │                    │
     ▼             ▼                  ▼                    ▼
@@ -46,13 +44,7 @@
                          │ • rate limit    │     │  monitor_id) │
                          └─────────────────┘     └──────────────┘
 
-                    Kafka (Redpanda) — internal only
-                           │
-                           ▼
-                     Go CF Bridge
-                  (all 3 Kafka topics)
-                           │
-          ┌────────────────┼────────────────┐
+          ┌────────────────┬────────────────┐
           ▼                ▼                ▼
     CF Queue EU      CF Queue US      CF Queue Asia
     (eu-west)        (us-east)        (ap-south)
@@ -68,15 +60,12 @@
 ### Cloudflare Workers Flow (push-based, no polling)
 
 ```
-1. Laravel Scheduler → Kafka monitor.eu-west / us-east / ap-south
-2. Go CF Bridge reads all 3 topics → pushes to corresponding CF Queue via CF API
-3. CF Queue triggers CF Worker automatically (push, not cron poll)
-4. CF Worker probes URL, measures TTFB + response time
-5. CF Worker POST /api/internal/probe-result → Laravel API
-6. Laravel writes ClickHouse + updates monitor status
+1. Laravel Scheduler → CloudflareQueueService → CF Queues (eu-west / us-east / ap-south)
+2. CF Queue triggers CF Worker automatically (push, not cron poll)
+3. CF Worker probes URL, measures TTFB + response time
+4. CF Worker POST /api/internal/probe-result → Laravel API
+5. Laravel writes ClickHouse + updates monitor status
 ```
-
-Go CF Bridge runs alongside Redpanda (VPS or local). Simple Kafka consumer + CF Queues producer, one instance handles all 3 regions.
 
 ## Repository Structure
 
@@ -84,11 +73,11 @@ Go CF Bridge runs alongside Redpanda (VPS or local). Simple Kafka consumer + CF 
 node-watch/
 ├── api/                        # Laravel 13, PHP 8.4
 │   ├── app/
-│   │   ├── Http/Controllers/   # AuthController, MonitorController
+│   │   ├── Http/Controllers/   # AuthController, MonitorController, ProbeResultController
 │   │   ├── Http/Requests/      # Auth/, Monitor/
 │   │   ├── Http/Resources/     # Auth/UserResource, MonitorResource
 │   │   ├── Models/             # User, Monitor
-│   │   ├── Services/           # AuthService, MonitorService
+│   │   ├── Services/           # AuthService, MonitorService, CloudflareQueueService, ClickHouseService
 │   │   ├── Policies/           # MonitorPolicy
 │   │   ├── Enums/Monitor/      # MonitorMethod, MonitorRegion, MonitorStatus
 │   │   └── OpenApi/            # OpenApiSpec.php (Swagger base)
@@ -102,9 +91,6 @@ node-watch/
 │   │   ├── api.php
 │   │   └── api/auth.php
 │   └── storage/api-docs/       # Generated Swagger JSON
-├── bridge/                     # Go CF Bridge (Redpanda → CF Queues, all 3 regions)
-│   ├── cmd/bridge/
-│   └── internal/
 ├── probes/                     # Cloudflare Workers (all 3 regions)
 │   ├── worker-eu/              # eu-west probe
 │   ├── worker-us/              # us-east probe
@@ -161,16 +147,6 @@ ENGINE = Distributed('nodewatch_cluster', default, monitor_logs_local, monitor_i
 
 Sharding key: `monitor_id` — evenly distributes write load, range queries by monitor stay local to one shard.
 
-## Kafka Topics
-
-| Topic | Producer | Consumer |
-|-------|----------|----------|
-| `monitor.eu-west` | Laravel Scheduler | Go CF Bridge → CF Queue EU |
-| `monitor.us-east` | Laravel Scheduler | Go CF Bridge → CF Queue US |
-| `monitor.ap-south` | Laravel Scheduler | Go CF Bridge → CF Queue Asia |
-
-CF Workers probe URLs and POST results directly to `/api/internal/probe-result` — no `monitor.result` Kafka topic needed.
-
 ## Development Phases
 
 ### Phase 1: MVP
@@ -180,15 +156,14 @@ CF Workers probe URLs and POST results directly to `/api/internal/probe-result` 
 - [x] Monitor CRUD API with ownership policy
 - [x] Swagger UI (l5-swagger, PHP 8 attributes)
 - [x] Feature tests: AuthController (14), MonitorController (23)
-- [x] Kafka producer: Laravel Scheduler → monitor.eu-west / us-east / ap-south (raw rdkafka, persistent producer, batch produce + single flush)
+- [x] Laravel Scheduler → CloudflareQueueService → CF Queues (3 regions, batch push)
 - [x] POST /api/internal/probe-result — ProbeResultController + VerifyInternalToken middleware
-- [x] Go CF Bridge (Redpanda → CF Queues, all 3 regions)
 - [x] CF Worker eu-west + us-east + ap-south (probe → POST /api/internal/probe-result)
 - [ ] ClickHouse write on probe result (ProbeResultController → monitor_logs)
 - [ ] Basic Nuxt dashboard
 
 ### Phase 2: Alerts & Observability
-- [ ] Incident detection in consumer (down/up transitions)
+- [ ] Incident detection (down/up transitions)
 - [ ] Alert notifications (Email, Telegram)
 - [ ] MySQL read replica + Laravel DB routing
 - [ ] Redis cache for monitor lists
@@ -196,7 +171,6 @@ CF Workers probe URLs and POST results directly to `/api/internal/probe-result` 
 - [ ] Grafana dashboard
 
 ### Phase 3: Distributed Probes
-- [ ] CF Worker eu-west, us-east, ap-south
 - [ ] ClickHouse Distributed (2 shards in docker-compose)
 - [ ] Region comparison UI in Nuxt
 
@@ -212,14 +186,10 @@ CF Workers probe URLs and POST results directly to `/api/internal/probe-result` 
 ### Laravel API
 - `laravel/sanctum` — token + cookie SPA auth
 - `darkaonline/l5-swagger` — Swagger UI via PHP 8 attributes
-- `junges/laravel-kafka` — Kafka producer/consumer (requires rdkafka ext)
+- `spatie/laravel-data` — DTOs with serialization
 - `laravel/pint` — code style (PSR-12)
 - `phpstan/phpstan` + `larastan/larastan` — static analysis level 6
 - `phpunit/phpunit` — testing
-
-### Go (worker + bridge)
-- `github.com/segmentio/kafka-go` — Kafka client
-- `github.com/go-resty/resty/v2` — HTTP probe client
 
 ### Cloudflare Workers
 - Wrangler CLI
@@ -241,23 +211,8 @@ cd api && php artisan test
 # Static analysis + code style
 cd api && ./vendor/bin/phpstan analyse && ./vendor/bin/pint
 
-# Go worker (eu-west)
-cd worker && go run cmd/worker/main.go
-
-# Go CF Bridge
-cd bridge && go run cmd/bridge/main.go
-
 # Nuxt frontend
 cd web && npm install && npm run dev
-```
-
-## Installing rdkafka (WSL/Linux)
-
-```bash
-sudo apt update && sudo apt install -y librdkafka-dev
-sudo pecl install rdkafka
-echo "extension=rdkafka.so" | sudo tee /etc/php/8.4/cli/conf.d/20-rdkafka.ini
-php -m | grep rdkafka
 ```
 
 ## Coding Standards
@@ -272,11 +227,6 @@ php -m | grep rdkafka
 - PHPStan level 6, zero errors
 - URL changes in monitors intentionally blocked (planned premium feature)
 
-### Go
-- Standard project layout (`cmd/`, `internal/`)
-- `internal/` for private packages
-- Table-driven tests
-
 ### TypeScript / Nuxt
 - Composition API only
 - TypeScript strict mode
@@ -284,8 +234,7 @@ php -m | grep rdkafka
 ## Notes for Claude
 
 - Developer knows Laravel/PHP and Vue well
-- New to: Go, Kafka, Kubernetes — explain concepts when relevant
-- Use rdkafka PHP extension (not HTTP Kafka proxy)
+- New to: Kubernetes — explain concepts when relevant
 - Production-ready patterns — portfolio project, code quality matters
 - `*Request` suffix = HTTP form request (validation), `DTO` = inter-service transfer object
 - Pagination handled in controller via `->paginate()`, not in service
