@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AuthService
@@ -14,20 +15,18 @@ class AuthService
         return User::create($request->validated());
     }
 
-    public function login(LoginRequest $request): ?string
+    public function login(LoginRequest $request): bool
     {
-        if (! Auth::attempt($request->validated())) {
-            return null;
-        }
-
-        /** @var User $user */
-        $user = Auth::user();
-
-        return $user->createToken('api')->plainTextToken;
+        return Auth::attempt($request->validated());
     }
 
-    public function logout(User $user): void
+    public function logout(Request $request): void
     {
-        $user->currentAccessToken()->delete();
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
     }
 }

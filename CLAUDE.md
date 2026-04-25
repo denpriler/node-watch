@@ -184,9 +184,10 @@ Sharding key: `monitor_id` — evenly distributes write load, range queries by m
 ## Key Packages
 
 ### Laravel API
-- `laravel/sanctum` — token + cookie SPA auth
+- `laravel/sanctum` — cookie SPA auth (session-based, `statefulApi()`)
 - `darkaonline/l5-swagger` — Swagger UI via PHP 8 attributes
-- `spatie/laravel-data` — DTOs with serialization
+- `spatie/laravel-data` — DTOs with serialization + TypeScript generation
+- `spatie/laravel-typescript-transformer` — generates `web/app/types/api.d.ts` via `composer ts-types`
 - `laravel/pint` — code style (PSR-12)
 - `phpstan/phpstan` + `larastan/larastan` — static analysis level 6
 - `phpunit/phpunit` — testing
@@ -221,7 +222,11 @@ cd web && npm install && npm run dev
 - PSR-12 via Pint
 - `declare(strict_types=1)` in services and commands
 - Form Requests for all validation
-- API Resources for all responses
+- API Resources delegate to `Data` DTOs via `->toArray()` (for TypeScript generation)
+- `JsonResource::withoutWrapping()` active — single resources return flat JSON, paginated collections still have `data`+`meta` from paginator
+- Auth: cookie/session mode — `Auth::attempt()` sets session, logout invalidates session (no API tokens)
+- Enums: always use enum types in DTOs/models; no `toStringValue()` — use `->value` directly
+- DTO naming: use model name without suffix (e.g. `Monitor`, not `MonitorData`) in `app/DTO/`
 - Services for business logic (no business logic in controllers)
 - Policies for authorization
 - PHPStan level 6, zero errors
@@ -236,8 +241,9 @@ cd web && npm install && npm run dev
 - Developer knows Laravel/PHP and Vue well
 - New to: Kubernetes — explain concepts when relevant
 - Production-ready patterns — portfolio project, code quality matters
-- `*Request` suffix = HTTP form request (validation), `DTO` = inter-service transfer object
+- `*Request` suffix = HTTP form request (validation), `DTO` = response/transfer object (named after model, e.g. `Monitor`)
 - Pagination handled in controller via `->paginate()`, not in service
 - CF Workers receive tasks via CF Queues (push-based), not by polling Laravel API
 - MySQL sharding NOT planned — read replica + Redis cache is the right approach for monitors table
 - ClickHouse sharding (Distributed engine) IS planned for monitor_logs (Phase 3)
+- TypeScript types: `composer ts-types` → generates `web/app/types/api.d.ts` (enums + DTOs); paginated types via `Illuminate.LengthAwarePaginator<never, T>`

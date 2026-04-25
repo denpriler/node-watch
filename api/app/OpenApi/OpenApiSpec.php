@@ -25,7 +25,6 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'email', type: 'string', format: 'email', example: 'user@example.com'),
-        new OA\Property(property: 'telegram_chat_id', type: 'string', nullable: true, example: null),
     ],
     type: 'object',
 )]
@@ -42,7 +41,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'regions', type: 'array', items: new OA\Items(type: 'string', example: 'eu-west')),
         new OA\Property(property: 'is_active', type: 'boolean', example: true),
         new OA\Property(property: 'next_check_at', type: 'string', format: 'date-time', nullable: true, example: null),
-        new OA\Property(property: 'last_status', type: 'string', enum: ['PENDING', 'UP', 'DOWN'], example: 'PENDING'),
+        new OA\Property(property: 'last_status', type: 'integer', enum: [0, 1, 2], example: 0),
     ],
     type: 'object',
 )]

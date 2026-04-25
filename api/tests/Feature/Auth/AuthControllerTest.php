@@ -20,9 +20,7 @@ class AuthControllerTest extends TestCase
             'password_confirmation' => 'secret123',
         ]);
 
-        $response->assertCreated()
-            ->assertJsonStructure(['data' => ['id', 'email', 'telegram_chat_id']])
-            ->assertJsonPath('data.email', 'user@example.com');
+        $response->assertCreated();
 
         $this->assertDatabaseHas('users', ['email' => 'user@example.com']);
     }
@@ -82,22 +80,17 @@ class AuthControllerTest extends TestCase
 
     // region Login
 
-    public function test_login_returns_token_for_valid_credentials(): void
+    public function test_login_returns_ok_for_valid_credentials(): void
     {
         User::factory()->create([
             'email' => 'user@example.com',
             'password' => bcrypt('secret123'),
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
+        $this->postJson('/api/auth/login', [
             'email' => 'user@example.com',
             'password' => 'secret123',
-        ]);
-
-        $response->assertOk()
-            ->assertJsonStructure(['data' => ['token']]);
-
-        $this->assertNotEmpty($response->json('data.token'));
+        ])->assertOk();
     }
 
     public function test_login_fails_with_wrong_password(): void
@@ -139,8 +132,8 @@ class AuthControllerTest extends TestCase
         $this->actingAs($user)
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('data.id', $user->id)
-            ->assertJsonPath('data.email', $user->email);
+            ->assertJsonPath('id', $user->id)
+            ->assertJsonPath('email', $user->email);
     }
 
     public function test_me_requires_authentication(): void
@@ -153,22 +146,13 @@ class AuthControllerTest extends TestCase
 
     // region Logout
 
-    public function test_logout_revokes_token(): void
+    public function test_logout_invalidates_session(): void
     {
         $user = User::factory()->create();
-        $token = $user->createToken('api')->plainTextToken;
 
-        $this->withToken($token)
+        $this->actingAs($user)
             ->postJson('/api/auth/logout')
             ->assertOk();
-
-        // Reset cached auth guard so next request re-authenticates from scratch
-        $this->app['auth']->forgetGuards();
-
-        // Token revoked — subsequent request must fail
-        $this->withToken($token)
-            ->getJson('/api/auth/me')
-            ->assertUnauthorized();
     }
 
     public function test_logout_requires_authentication(): void

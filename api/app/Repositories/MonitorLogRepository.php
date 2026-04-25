@@ -26,7 +26,7 @@ readonly class MonitorLogRepository
                 sprintf(
                     'SELECT * FROM monitor_logs WHERE monitor_id = %d AND region = \'%s\' ORDER BY checked_at DESC LIMIT %d',
                     $monitorId,
-                    $region->toStringValue(),
+                    $region->value,
                     $limit
                 )
             );

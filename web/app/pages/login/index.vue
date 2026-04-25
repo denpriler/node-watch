@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import LoginForm from "@/components/auth/LoginForm.vue";
+
+definePageMeta({
+  sanctum: {
+    excluded: true,
+  },
+});
 </script>
 
 <template>

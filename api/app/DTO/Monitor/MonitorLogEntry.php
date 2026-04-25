@@ -47,7 +47,7 @@ class MonitorLogEntry extends Data
     {
         return array_merge(parent::toArray(), [
             'checked_at' => $this->checkedAt->format('Y-m-d H:i:s'),
-            'region' => $this->region->toStringValue(),
+            'region' => $this->region->value,
         ]);
     }
 }

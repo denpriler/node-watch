@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Monitor;
 use App\Services\ClickHouseService;
 use App\Services\CloudflareQueueService;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        JsonResource::withoutWrapping();
         Route::model('monitor', Monitor::class);
     }
 }

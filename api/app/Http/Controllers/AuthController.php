@@ -24,30 +24,22 @@ class AuthController extends Controller
                 required: ['email', 'password', 'password_confirmation'],
                 properties: [
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'user@example.com'),
-                    new OA\Property(property: 'password', type: 'string', minLength: 8, example: 'secret123'),
+                    new OA\Property(property: 'password', type: 'string', example: 'secret123', minLength: 8),
                     new OA\Property(property: 'password_confirmation', type: 'string', example: 'secret123'),
                 ],
             ),
         ),
         tags: ['Auth'],
         responses: [
-            new OA\Response(
-                response: 200,
-                description: 'User registered',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/UserResource'),
-                    ],
-                ),
-            ),
+            new OA\Response(response: 201, description: 'User registered'),
             new OA\Response(response: 422, description: 'Validation error'),
         ],
     )]
-    public function register(RegisterRequest $request): UserResource
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $user = $this->authService->register($request);
+        $this->authService->register($request);
 
-        return UserResource::make($user);
+        return response()->json([], Response::HTTP_CREATED);
     }
 
     #[OA\Post(
@@ -65,36 +57,18 @@ class AuthController extends Controller
         ),
         tags: ['Auth'],
         responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Token issued',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(
-                            property: 'data',
-                            properties: [
-                                new OA\Property(property: 'token', type: 'string', example: '1|abc123...'),
-                            ],
-                            type: 'object',
-                        ),
-                    ],
-                ),
-            ),
+            new OA\Response(response: 200, description: 'Authenticated'),
             new OA\Response(response: 401, description: 'Invalid credentials'),
             new OA\Response(response: 422, description: 'Validation error'),
         ],
     )]
     public function login(LoginRequest $request): JsonResponse
     {
-        $token = $this->authService->login($request);
-
-        if (is_null($token)) {
+        if (! $this->authService->login($request)) {
             return response()->json(['message' => __('auth.failed')], Response::HTTP_UNAUTHORIZED);
         }
 
-        return response()->json([
-            'data' => compact('token'),
-        ]);
+        return response()->json([]);
     }
 
     #[OA\Get(
@@ -106,11 +80,7 @@ class AuthController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Current user',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/UserResource'),
-                    ],
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/UserResource'),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
         ],
@@ -132,7 +102,7 @@ class AuthController extends Controller
     )]
     public function logout(Request $request): JsonResponse
     {
-        $this->authService->logout($request->user());
+        $this->authService->logout($request);
 
         return response()->json([]);
     }

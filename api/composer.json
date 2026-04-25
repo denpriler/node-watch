@@ -11,7 +11,8 @@
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
-        "spatie/laravel-data": "^4.21"
+        "spatie/laravel-data": "^4.21",
+        "spatie/laravel-typescript-transformer": "^3.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.7",
@@ -77,7 +78,10 @@
             "@php artisan ide-helper:models -N"
         ],
         "pint": "pint",
-        "analyse": "phpstan analyse --memory-limit=256M"
+        "analyse": "phpstan analyse --memory-limit=256M",
+        "ts-types": [
+            "@php artisan typescript:transform"
+        ]
     },
     "extra": {
         "laravel": {

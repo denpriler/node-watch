@@ -71,9 +71,9 @@ class MonitorControllerTest extends TestCase
             ->postJson('/api/monitor', $this->validPayload());
 
         $response->assertCreated()
-            ->assertJsonPath('data.name', 'My Website')
-            ->assertJsonPath('data.url', 'https://example.com')
-            ->assertJsonPath('data.last_status', MonitorStatus::PENDING->toStringValue());
+            ->assertJsonPath('name', 'My Website')
+            ->assertJsonPath('url', 'https://example.com')
+            ->assertJsonPath('last_status', MonitorStatus::PENDING->value);
 
         $this->assertDatabaseHas('monitors', [
             'user_id' => $user->id,
@@ -92,7 +92,7 @@ class MonitorControllerTest extends TestCase
         $response->assertCreated();
 
         $this->assertDatabaseHas('monitors', [
-            'id' => $response->json('data.id'),
+            'id' => $response->json('id'),
             'user_id' => $user->id,
         ]);
     }
@@ -154,8 +154,8 @@ class MonitorControllerTest extends TestCase
         $this->actingAs($user)
             ->getJson("/api/monitor/{$monitor->id}")
             ->assertOk()
-            ->assertJsonPath('data.id', $monitor->id)
-            ->assertJsonPath('data.name', $monitor->name);
+            ->assertJsonPath('id', $monitor->id)
+            ->assertJsonPath('name', $monitor->name);
     }
 
     public function test_show_returns_403_for_another_users_monitor(): void
@@ -197,7 +197,7 @@ class MonitorControllerTest extends TestCase
         $this->actingAs($user)
             ->putJson("/api/monitor/{$monitor->id}", ['name' => 'Updated Name'])
             ->assertOk()
-            ->assertJsonPath('data.name', 'Updated Name');
+            ->assertJsonPath('name', 'Updated Name');
 
         $this->assertDatabaseHas('monitors', [
             'id' => $monitor->id,
@@ -216,7 +216,7 @@ class MonitorControllerTest extends TestCase
         $this->actingAs($user)
             ->putJson("/api/monitor/{$monitor->id}", ['check_interval' => 120])
             ->assertOk()
-            ->assertJsonPath('data.check_interval', 120);
+            ->assertJsonPath('check_interval', 120);
     }
 
     public function test_update_does_not_change_url(): void
@@ -233,7 +233,7 @@ class MonitorControllerTest extends TestCase
                 'url' => 'https://evil.com',
             ])
             ->assertOk()
-            ->assertJsonPath('data.url', 'https://example.com');
+            ->assertJsonPath('url', 'https://example.com');
     }
 
     public function test_update_fails_with_invalid_check_interval(): void
@@ -277,7 +277,7 @@ class MonitorControllerTest extends TestCase
         $this->actingAs($user)
             ->deleteJson("/api/monitor/{$monitor->id}")
             ->assertOk()
-            ->assertJsonPath('data.id', $monitor->id);
+            ->assertJsonPath('id', $monitor->id);
 
         $this->assertDatabaseMissing('monitors', ['id' => $monitor->id]);
     }

@@ -79,11 +79,7 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor created',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
-                    ],
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 422, description: 'Validation error'),
@@ -110,11 +106,7 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor details',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
-                    ],
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),
@@ -153,11 +145,7 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor updated',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
-                    ],
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),
@@ -186,11 +174,7 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor deleted',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
-                    ],
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),

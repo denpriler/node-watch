@@ -10,12 +10,4 @@ enum MonitorRegion: string
     case US_EAST = 'us-east';
     case AP_SOUTH = 'ap-south';
 
-    public function toStringValue(): string
-    {
-        return match ($this) {
-            MonitorRegion::EU_WEST => 'eu-west',
-            MonitorRegion::US_EAST => 'us-east',
-            MonitorRegion::AP_SOUTH => 'ap-south',
-        };
-    }
 }

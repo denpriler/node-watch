@@ -32,7 +32,7 @@ class CloudflareQueueService
      */
     public function pushMonitorProbes(MonitorRegion $region, array $probes): void
     {
-        $queueId = $this->queueConfig[$region->value] ?? throw new InvalidArgumentException("No queue configured for region: {$region->toStringValue()}");
+        $queueId = $this->queueConfig[$region->value] ?? throw new InvalidArgumentException("No queue configured for region: {$region->value}");
 
         Http::withToken($this->apiToken)
             ->post(sprintf("%s/{$this->accountId}/queues/{$queueId}/messages/batch", $this->baseUrl), [

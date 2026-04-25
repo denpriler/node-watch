@@ -20,7 +20,7 @@ export default defineNuxtConfig({
       ],
     },
   },
-  modules: ["shadcn-nuxt", "@vueuse/nuxt", "@nuxt/eslint"],
+  modules: ["shadcn-nuxt", "@vueuse/nuxt", "@nuxt/eslint", "nuxt-auth-sanctum"],
   shadcn: {
     /**
      * Prefix for all the imported component.
@@ -34,5 +34,28 @@ export default defineNuxtConfig({
      * @default "@/components/ui"
      */
     componentDir: "@/components/ui",
+  },
+  sanctum: {
+    baseUrl: "http://localhost:8000",
+    mode: "cookie",
+    endpoints: {
+      csrf: "/sanctum/csrf-cookie",
+      login: "/api/auth/login",
+      logout: "/api/auth/logout",
+      user: "/api/auth/me",
+    },
+    csrf: {
+      cookie: "XSRF-TOKEN",
+      header: "X-XSRF-TOKEN",
+    },
+    redirect: {
+      onLogin: "/dashboard",
+      onLogout: "/",
+      onAuthOnly: "/login",
+      onGuestOnly: "/dashboard",
+    },
+    globalMiddleware: {
+      enabled: true,
+    },
   },
 });
