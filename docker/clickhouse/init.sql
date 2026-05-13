@@ -7,8 +7,7 @@ CREATE TABLE IF NOT EXISTS monitor_logs
     response_time_ms UInt32,
     is_up            UInt8,
     error            Nullable(String),
-    ttfb_ms          UInt32,
-    cert_expires_at  Nullable(DateTime)
+    ttfb_ms          UInt32
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(checked_at)

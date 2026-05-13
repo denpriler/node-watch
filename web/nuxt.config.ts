@@ -17,10 +17,19 @@ export default defineNuxtConfig({
         "clsx",
         "tailwind-merge",
         "lucide-vue-next",
+        "@tanstack/vue-query",
+        "@unovis/vue",
+        "@unovis/ts",
       ],
     },
   },
-  modules: ["shadcn-nuxt", "@vueuse/nuxt", "@nuxt/eslint", "nuxt-auth-sanctum"],
+  modules: [
+    "shadcn-nuxt",
+    "@vueuse/nuxt",
+    "@nuxt/eslint",
+    "nuxt-auth-sanctum",
+    "@vee-validate/nuxt",
+  ],
   shadcn: {
     /**
      * Prefix for all the imported component.

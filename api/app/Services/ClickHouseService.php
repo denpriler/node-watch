@@ -8,7 +8,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-final readonly class ClickHouseService
+readonly class ClickHouseService
 {
     public function __construct(
         private string $host,

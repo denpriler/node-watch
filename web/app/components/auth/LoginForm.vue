@@ -9,14 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { FetchError } from "ofetch";
 
 const props = defineProps<{
   class?: HTMLAttributes["class"];
@@ -28,32 +21,24 @@ type LoginForm = {
   email?: string;
   password?: string;
 };
-const { data, errors, processing, setErrors } = useApiForm<LoginForm>({
-  path: "/api/auth/login",
-  initialData: {},
-});
-const onFormSubmit = async () => {
-  processing.value = true;
+const { handleSubmit, setErrors, isSubmitting, setFieldError } =
+  useForm<LoginForm>();
+
+const onSubmit = handleSubmit(async (data) => {
   try {
-    await login({
-      email: data.email,
-      password: data.password,
-    });
-  } catch (error) {
-    if (error instanceof FetchError) {
-      if (error.response?.status === 422) {
-        setErrors(error.response?._data.errors);
-      }
-      if (error.response?.status === 401) {
-        setErrors({
-          email: [error.response?._data?.message ?? "Wrong email or password."],
-        });
-      }
+    await login({ email: data.email, password: data.password });
+  } catch (e: unknown) {
+    const err = e as {
+      response?: { status?: number; _data?: Record<string, unknown> };
+    };
+    if (err?.response?.status === 422) {
+      setErrors(err.response?._data?.errors as Record<string, string[]>);
     }
-  } finally {
-    processing.value = false;
+    if (err?.response?.status === 401) {
+      setFieldError("email", err.response?._data?.message as string);
+    }
   }
-};
+});
 </script>
 
 <template>
@@ -66,52 +51,30 @@ const onFormSubmit = async () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form @submit.prevent="onFormSubmit">
-          <FieldGroup>
-            <Field>
-              <FieldLabel for="email">Email</FieldLabel>
-              <Input
-                id="email"
-                v-model="data.email"
-                :disabled="processing"
-                type="email"
-                placeholder="m@example.com"
-                required
-              />
-              <FieldError v-if="!!errors.email">{{ errors.email }}</FieldError>
-            </Field>
-            <Field>
-              <div class="flex items-center">
-                <FieldLabel for="password">Password</FieldLabel>
-                <a
-                  href="#"
-                  class="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                >
-                  Forgot your password?
-                </a>
-              </div>
-              <Input
-                id="password"
-                v-model="data.password"
-                :disabled="processing"
-                type="password"
-                required
-              />
-              <FieldError v-if="!!errors.password">{{
-                errors.password
-              }}</FieldError>
-            </Field>
-            <Field>
-              <Button type="submit"> Login</Button>
-              <!--              <Button variant="outline" type="button">-->
-              <!--                Login with Google-->
-              <!--              </Button>-->
-              <FieldDescription class="text-center">
-                Don't have an account?
-                <NuxtLink href="/signup"> Sign up</NuxtLink>
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
+        <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
+          <FormField v-slot="{ componentField }" name="email">
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input v-bind="componentField" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="password">
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input v-bind="componentField" type="password" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <Button type="submit" :disabled="isSubmitting">Login</Button>
+          <div class="text-center">
+            Don't have an account?
+            <NuxtLink href="/signup" class="hover:underline">Sign up</NuxtLink>
+          </div>
         </form>
       </CardContent>
     </Card>

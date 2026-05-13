@@ -5,9 +5,13 @@ namespace App\Providers;
 use App\Models\Monitor;
 use App\Services\ClickHouseService;
 use App\Services\CloudflareQueueService;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,7 +38,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        JsonResource::withoutWrapping();
         Route::model('monitor', Monitor::class);
+
+        Date::use(CarbonImmutable::class);
+
+        DB::prohibitDestructiveCommands(
+            app()->isProduction(),
+        );
+
+        Password::defaults(fn (): ?Password => app()->isProduction()
+            ? Password::min(12)
+                ->mixedCase()
+                ->letters()
+                ->numbers()
+                ->symbols()
+                ->uncompromised()
+            : null,
+        );
+
+        Model::shouldBeStrict(! app()->isProduction());
     }
 }

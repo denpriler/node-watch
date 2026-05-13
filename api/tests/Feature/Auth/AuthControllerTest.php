@@ -132,8 +132,8 @@ class AuthControllerTest extends TestCase
         $this->actingAs($user)
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('id', $user->id)
-            ->assertJsonPath('email', $user->email);
+            ->assertJsonPath('data.attributes.id', $user->id)
+            ->assertJsonPath('data.attributes.email', $user->email);
     }
 
     public function test_me_requires_authentication(): void

@@ -2,19 +2,24 @@
 
 namespace App\Http\Resources\Auth;
 
-use App\DTO\Auth\User;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\JsonApi\JsonApiResource;
 
-/** @mixin User */
-class UserResource extends JsonResource
+class UserResource extends JsonApiResource
 {
-    /** @var \App\Models\User */
+    /** @var User */
     public $resource;
 
+    /** @var array<string, mixed> */
+    public array $relationships = [];
+
     /** @return array<string, mixed> */
-    public function toArray(Request $request): array
+    public function toAttributes(Request $request): array
     {
-        return User::fromModel($this->resource)->toArray();
+        return [
+            'id' => $this->resource->id,
+            'email' => $this->resource->email,
+        ];
     }
 }

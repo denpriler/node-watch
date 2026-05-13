@@ -29,6 +29,23 @@ class MonitorLogEntry extends Data
         public readonly ?string $error,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    public static function fromMonitorLog(array $row): self
+    {
+        return new self(
+            monitorId: (int) $row['monitor_id'],
+            checkedAt: CarbonImmutable::parse($row['checked_at']),
+            region: MonitorRegion::from($row['region']),
+            statusCode: (int) $row['status_code'],
+            responseTimeMs: (int) $row['response_time_ms'],
+            ttfbMs: (int) $row['ttfb_ms'],
+            isUp: (bool) $row['is_up'],
+            error: $row['error'] ?? null,
+        );
+    }
+
     public static function fromProbeResultRequest(ProbeResultRequest $request): self
     {
         return new self(
@@ -45,9 +62,14 @@ class MonitorLogEntry extends Data
 
     public function toArray(): array
     {
-        return array_merge(parent::toArray(), [
-            'checked_at' => $this->checkedAt->format('Y-m-d H:i:s'),
+        return [
+            'monitor_id' => $this->monitorId,
+            'is_up' => $this->isUp,
+            'datetime' => $this->checkedAt->getTimestamp(),
             'region' => $this->region->value,
-        ]);
+            'status' => $this->statusCode,
+            'response_time_ms' => $this->responseTimeMs,
+            'ttfb_ms' => $this->ttfbMs,
+        ];
     }
 }

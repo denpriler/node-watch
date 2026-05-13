@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Http\Resources\Auth\UserResource;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -80,14 +80,19 @@ class AuthController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Current user',
-                content: new OA\JsonContent(ref: '#/components/schemas/UserResource'),
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', ref: '#/components/schemas/UserResource'),
+                    ],
+                    type: 'object',
+                ),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
         ],
     )]
-    public function me(Request $request): UserResource
+    public function me(Request $request): JsonResource
     {
-        return UserResource::make($request->user());
+        return $request->user()->toResource();
     }
 
     #[OA\Post(

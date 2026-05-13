@@ -55,6 +55,7 @@ export async function postResult(result: ProbeResult, apiUrl: string, token: str
 		headers: {
 			'Content-Type': 'application/json',
 			'X-Internal-Token': token,
+			'ngrok-skip-browser-warning': '1',
 		},
 		body: JSON.stringify(result),
 	});

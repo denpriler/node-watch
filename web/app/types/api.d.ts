@@ -1,24 +1,15 @@
 declare namespace App {
   namespace DTO {
-    namespace Auth {
-      export type User = {
-        readonly id: number;
-        readonly email: string;
-      };
-    }
     namespace Monitor {
-      export type Monitor = {
-        readonly id: number;
-        readonly name: string;
-        readonly url: string;
-        readonly method: App.Enum.Monitor.MonitorMethod;
-        readonly check_interval: number;
-        readonly timeout: number;
-        readonly expected_status: number;
-        readonly regions: App.Enum.Monitor.MonitorRegion[];
-        readonly is_active: boolean;
-        readonly next_check_at: string | null;
-        readonly last_status: App.Enum.Monitor.MonitorStatus;
+      export type MonitorLogBucket = {
+        readonly bucket: string;
+        readonly region: App.Enum.Monitor.MonitorRegion;
+        readonly avg_response_time_ms: number;
+        readonly min_response_time_ms: number;
+        readonly max_response_time_ms: number;
+        readonly avg_ttfb_ms: number;
+        readonly down_count: number;
+        readonly sample_count: number;
       };
       export type MonitorLogEntry = {
         readonly monitor_id: number;

@@ -3,7 +3,7 @@ import SignUpForm from "~/components/auth/SignUpForm.vue";
 
 definePageMeta({
   sanctum: {
-    excluded: true,
+    guestOnly: true,
   },
 });
 </script>

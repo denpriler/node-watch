@@ -4,14 +4,17 @@ namespace App\Models;
 
 use App\Enum\Monitor\MonitorMethod;
 use App\Enum\Monitor\MonitorStatus;
+use App\Http\Resources\Monitor\MonitorResource;
 use Database\Factories\MonitorFactory;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
+use Illuminate\Database\Eloquent\Attributes\UseResource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Symfony\Component\HttpFoundation\Response;
 
 #[Unguarded]
+#[UseResource(MonitorResource::class)]
 class Monitor extends Model
 {
     /** @use HasFactory<MonitorFactory> */

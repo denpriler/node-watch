@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Monitor\CreateMonitorRequest;
 use App\Http\Requests\Monitor\UpdateMonitorRequest;
-use App\Http\Resources\MonitorResource;
+use App\Http\Resources\Monitor\MonitorResource;
 use App\Models\Monitor;
 use App\Models\User;
 use App\Services\MonitorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
 
 class MonitorController extends Controller
@@ -77,21 +78,25 @@ class MonitorController extends Controller
         tags: ['Monitors'],
         responses: [
             new OA\Response(
-                response: 200,
+                response: 201,
                 description: 'Monitor created',
-                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
+                    ],
+                ),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 422, description: 'Validation error'),
         ],
     )]
-    public function store(CreateMonitorRequest $request): MonitorResource
+    public function store(CreateMonitorRequest $request): JsonResource
     {
         $this->authorize('create', Monitor::class);
 
         $monitor = $this->monitorService->create($request);
 
-        return MonitorResource::make($monitor);
+        return $monitor->toResource();
     }
 
     #[OA\Get(
@@ -106,18 +111,22 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor details',
-                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
+                    ],
+                ),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),
             new OA\Response(response: 404, description: 'Not found'),
         ],
     )]
-    public function show(Monitor $monitor): MonitorResource
+    public function show(Monitor $monitor): JsonResource
     {
         $this->authorize('view', $monitor);
 
-        return MonitorResource::make($monitor);
+        return $monitor->toResource();
     }
 
     #[OA\Put(
@@ -145,7 +154,11 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor updated',
-                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
+                    ],
+                ),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),
@@ -153,13 +166,11 @@ class MonitorController extends Controller
             new OA\Response(response: 422, description: 'Validation error'),
         ],
     )]
-    public function update(UpdateMonitorRequest $request, Monitor $monitor): MonitorResource
+    public function update(UpdateMonitorRequest $request, Monitor $monitor): JsonResource
     {
         $this->authorize('update', $monitor);
 
-        return MonitorResource::make(
-            $this->monitorService->update($request, $monitor)
-        );
+        return $this->monitorService->update($request, $monitor)->toResource();
     }
 
     #[OA\Delete(
@@ -174,19 +185,23 @@ class MonitorController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'Monitor deleted',
-                content: new OA\JsonContent(ref: '#/components/schemas/MonitorResource'),
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', ref: '#/components/schemas/MonitorResource'),
+                    ],
+                ),
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden'),
             new OA\Response(response: 404, description: 'Not found'),
         ],
     )]
-    public function destroy(Monitor $monitor): MonitorResource
+    public function destroy(Monitor $monitor): JsonResource
     {
         $this->authorize('delete', $monitor);
 
         $monitor->delete();
 
-        return MonitorResource::make($monitor);
+        return $monitor->toResource();
     }
 }

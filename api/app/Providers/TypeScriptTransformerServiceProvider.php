@@ -19,7 +19,6 @@ class TypeScriptTransformerServiceProvider extends BaseTypeScriptTransformerServ
             ->transformer(EnumTransformer::class)
             ->transformDirectories(
                 app_path('Enum'),
-                app_path('DTO/Auth'),
                 app_path('DTO/Monitor'),
             )
             ->writer(new GlobalNamespaceWriter('api.d.ts'))

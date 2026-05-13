@@ -3,17 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Http\Resources\Auth\UserResource;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\UseResource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['email', 'password', 'telegram_chat_id'])]
+#[Fillable(['email', 'password', 'telegram_chat_id', 'remember_token'])]
 #[Hidden(['password'])]
+#[UseResource(UserResource::class)]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
